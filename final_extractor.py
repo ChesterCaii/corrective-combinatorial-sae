@@ -54,7 +54,7 @@ class WikipediaPromptDataset(Dataset):
         
         # Load Wikipedia dataset
         print("Loading Wikipedia dataset...")
-        self.dataset = load_dataset("wikipedia", "20220301.en", split="train", streaming=True)
+        self.dataset = load_dataset("wikipedia", "20220301.en", split="train", streaming=True, trust_remote_code=True)
         
         # Generate prompts
         self._generate_prompts()
