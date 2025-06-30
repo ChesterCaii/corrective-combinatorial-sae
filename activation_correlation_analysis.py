@@ -39,13 +39,13 @@ class ActivationCorrelationAnalyzer:
         
     def load_activations(self):
         """Load activation data from saved file."""
-        print("📂 Loading activation data...")
+        print("Loading activation data...")
         
         data = np.load(self.activations_path, allow_pickle=True).item()
         self.activations = data
         self.layer_names = list(data.keys())
         
-        print(f"✅ Loaded activations from {len(self.layer_names)} layers:")
+        print(f"Loaded activations from {len(self.layer_names)} layers:")
         for layer, acts in data.items():
             print(f"   Layer {layer}: {acts.shape}")
         
@@ -72,7 +72,7 @@ class ActivationCorrelationAnalyzer:
         
         # Limit features for computational efficiency
         n_analyze = min(max_features, n_features)
-        print(f"🔍 Analyzing correlations for {n_analyze} features in layer {layer}...")
+        print(f"Analyzing correlations for {n_analyze} features in layer {layer}...")
         
         # Compute correlation matrix
         correlation_matrix = np.corrcoef(activations[:, :n_analyze].T)
@@ -93,7 +93,7 @@ class ActivationCorrelationAnalyzer:
         # Sort by absolute correlation
         significant_pairs.sort(key=lambda x: x['abs_correlation'], reverse=True)
         
-        print(f"✅ Found {len(significant_pairs)} significant correlations (|r| > {threshold})")
+        print(f"Found {len(significant_pairs)} significant correlations (|r| > {threshold})")
         
         return correlation_matrix, significant_pairs
     
@@ -120,7 +120,7 @@ class ActivationCorrelationAnalyzer:
         n_features1 = min(max_features, acts1.shape[1])
         n_features2 = min(max_features, acts2.shape[1])
         
-        print(f"🔍 Computing cross-layer correlations: Layer {layer1} ({n_features1} features) vs Layer {layer2} ({n_features2} features)...")
+        print(f"Computing cross-layer correlations: Layer {layer1} ({n_features1} features) vs Layer {layer2} ({n_features2} features)...")
         
         # Compute cross-correlation matrix
         cross_correlation_matrix = np.zeros((n_features1, n_features2))
@@ -144,7 +144,7 @@ class ActivationCorrelationAnalyzer:
         # Sort by absolute correlation
         significant_pairs.sort(key=lambda x: x['abs_correlation'], reverse=True)
         
-        print(f"✅ Found {len(significant_pairs)} significant cross-layer correlations (|r| > {threshold})")
+        print(f"Found {len(significant_pairs)} significant cross-layer correlations (|r| > {threshold})")
         
         return cross_correlation_matrix, significant_pairs
     
@@ -156,7 +156,7 @@ class ActivationCorrelationAnalyzer:
             max_features: Maximum number of features to analyze per layer
             threshold: Correlation threshold
         """
-        print("🚀 Starting comprehensive activation correlation analysis...")
+        print("Starting comprehensive activation correlation analysis...")
         
         if self.activations is None:
             self.load_activations()
@@ -168,7 +168,7 @@ class ActivationCorrelationAnalyzer:
         }
         
         # 1. Within-layer correlations
-        print("\n📊 Computing within-layer correlations...")
+        print("\nComputing within-layer correlations...")
         for layer in self.layer_names:
             corr_matrix, sig_pairs = self.compute_within_layer_correlations(
                 layer, max_features, threshold
@@ -183,7 +183,7 @@ class ActivationCorrelationAnalyzer:
             np.save(f"{self.output_dir}/layer_{layer}_correlation_matrix.npy", corr_matrix)
         
         # 2. Cross-layer correlations
-        print("\n🔗 Computing cross-layer correlations...")
+        print("\nComputing cross-layer correlations...")
         layer_pairs = [
             (2, 4), (4, 6), (6, 8),  # Adjacent layers
             (2, 6), (2, 8), (4, 8)   # Skip connections
@@ -219,7 +219,7 @@ class ActivationCorrelationAnalyzer:
         with open(f"{self.output_dir}/correlation_analysis_results.json", 'w') as f:
             json.dump(results, f, indent=2, default=str)
         
-        print(f"\n📈 Analysis Complete!")
+        print(f"\nAnalysis Complete!")
         print(f"   Within-layer correlations: {total_within_pairs}")
         print(f"   Cross-layer correlations: {total_cross_pairs}")
         print(f"   Results saved to: {self.output_dir}/")
@@ -254,7 +254,7 @@ class ActivationCorrelationAnalyzer:
         plt.savefig(f"{self.output_dir}/layer_{layer}_correlation_heatmap.png", dpi=300, bbox_inches='tight')
         plt.show()
         
-        print(f"📊 Correlation heatmap saved for layer {layer}")
+        print(f"Correlation heatmap saved for layer {layer}")
 
 
 def main():
@@ -275,11 +275,11 @@ def main():
     )
     
     # Create visualizations for each layer
-    print("\n🎨 Creating visualizations...")
+    print("\nCreating visualizations...")
     for layer in analyzer.layer_names:
         analyzer.create_visualization(layer, max_features=50)
     
-    print("\n🎯 Next Steps:")
+    print("\nNext Steps:")
     print("1. Review correlation analysis results in activation_correlation_outputs/")
     print("2. Examine high-correlation feature pairs for semantic relationships")
     print("3. Use results to guide SAE feature selection")
