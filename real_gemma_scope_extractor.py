@@ -21,8 +21,18 @@ from tqdm import tqdm
 import time
 import os
 import json
-from sae_lens import SAE  # SAELens library for loading GemmaScope SAEs
-from huggingface_hub import hf_hub_download
+
+try:
+    from huggingface_hub import hf_hub_download
+except ImportError:
+    print("Warning: huggingface_hub not installed. Please install with: pip install huggingface_hub")
+    hf_hub_download = None
+
+try:
+    from sae_lens import SAE  # SAELens library for loading GemmaScope SAEs
+except ImportError:
+    print("Warning: SAELens not installed. Please install with: pip install sae-lens")
+    SAE = None
 
 
 class GemmaScopeActivationHook:
@@ -236,7 +246,7 @@ class RealGemmaScopeExtractor:
         self.hooks = {}
         self.saes = {}
         
-        print("🚀 Initializing Real GemmaScope SAE Extractor...")
+        print(" Initializing Real GemmaScope SAE Extractor...")
         print(f"Model: {model_name}")
         print(f"Target layers: {target_layers}")
         print(f"SAE width: {sae_width}")
@@ -275,10 +285,10 @@ class RealGemmaScopeExtractor:
                 self.model = self.model.to(self.device)
                 
             self.model.eval()
-            print("✅ Gemma-2-2B model loaded successfully")
+            print(" Gemma-2-2B model loaded successfully")
             
         except Exception as e:
-            print(f"❌ Error loading Gemma-2-2B: {e}")
+            print(f" Error loading Gemma-2-2B: {e}")
             print("This might be due to:")
             print("1. Missing HuggingFace token (set HF_TOKEN environment variable)")
             print("2. No access to Gemma-2-2B (request access on HuggingFace)")
@@ -289,35 +299,43 @@ class RealGemmaScopeExtractor:
         """Load pretrained GemmaScope SAEs using SAELens."""
         print("Loading GemmaScope SAEs using SAELens...")
         
-        # GemmaScope repository for 2B residual SAEs
+        if SAE is None:
+            print("  SAELens not available - will extract raw activations only")
+            return
+        
+        # Correct GemmaScope repository
         sae_repo = "google/gemma-scope-2b-pt-res"
         
         for layer_idx in self.target_layers:
             try:
                 print(f"Loading SAE for layer {layer_idx}...")
                 
-                # SAE ID format for GemmaScope
-                sae_id = f"{sae_repo}/layer_{layer_idx}/width_{self.sae_width//1000}k/average_l0_71"
+                # Correct SAE ID format for GemmaScope
+                sae_id = f"layer_{layer_idx}/width_16k/average_l0_71"
                 
                 # Load SAE using SAELens
                 try:
                     sae = SAE.from_pretrained(
                         release=sae_repo,
-                        sae_id=f"layer_{layer_idx}",
+                        sae_id=sae_id,
                         device=self.device
                     )
                     self.saes[layer_idx] = sae
-                    print(f"✅ Layer {layer_idx} SAE loaded: input_dim={sae.d_in}, output_dim={sae.d_sae}")
+                    print(f" Layer {layer_idx} SAE loaded: input_dim={sae.d_in}, output_dim={sae.d_sae}")
                     
                 except Exception as sae_error:
-                    print(f"⚠️  Could not load SAE for layer {layer_idx} via SAELens: {sae_error}")
+                    print(f"  Could not load SAE for layer {layer_idx} via SAELens: {sae_error}")
                     print(f"Trying alternative loading method...")
                     
                     # Alternative: direct HuggingFace download
                     try:
+                        if hf_hub_download is None:
+                            print("  huggingface_hub not available - cannot download SAE weights")
+                            continue
+                            
                         sae_path = hf_hub_download(
                             repo_id=sae_repo,
-                            filename=f"layer_{layer_idx}/width_{self.sae_width//1000}k/sae_weights.safetensors",
+                            filename=f"layer_{layer_idx}/width_16k/average_l0_71/sae_weights.safetensors",
                             token=os.getenv("HF_TOKEN")
                         )
                         # This would require manual SAE reconstruction
@@ -325,17 +343,17 @@ class RealGemmaScopeExtractor:
                         print("Manual SAE loading not implemented - skipping this layer")
                         
                     except Exception as download_error:
-                        print(f"⚠️  Could not download SAE for layer {layer_idx}: {download_error}")
+                        print(f"  Could not download SAE for layer {layer_idx}: {download_error}")
                         print("Continuing without SAE for this layer...")
                 
             except Exception as e:
-                print(f"⚠️  Error loading SAE for layer {layer_idx}: {e}")
+                print(f"  Error loading SAE for layer {layer_idx}: {e}")
                 print("Continuing without SAE for this layer...")
         
         if self.saes:
-            print(f"✅ Successfully loaded {len(self.saes)} GemmaScope SAEs")
+            print(f" Successfully loaded {len(self.saes)} GemmaScope SAEs")
         else:
-            print("⚠️  No SAEs loaded - will extract raw activations only")
+            print("  No SAEs loaded - will extract raw activations only")
     
     def _register_hooks(self):
         """Register forward hooks on target layers."""
@@ -353,9 +371,9 @@ class RealGemmaScopeExtractor:
                 # Register hook on the layer output
                 layer.register_forward_hook(hook)
                 self.hooks[layer_idx] = hook
-                print(f"✅ Registered hook on layer {layer_idx} (SAE: {'Yes' if sae else 'No'})")
+                print(f" Registered hook on layer {layer_idx} (SAE: {'Yes' if sae else 'No'})")
             else:
-                print(f"⚠️  Warning: Layer {layer_idx} not found (model has {len(transformer_layers)} layers)")
+                print(f" Warning: Layer {layer_idx} not found (model has {len(transformer_layers)} layers)")
     
     def extract_features(self, 
                         num_tokens: int = 1_000_000,
@@ -372,7 +390,7 @@ class RealGemmaScopeExtractor:
         Returns:
             Dictionary with 'activations' and 'sae_features' for each layer
         """
-        print(f"🎯 Starting GemmaScope feature extraction for {num_tokens:,} tokens...")
+        print(f" Starting GemmaScope feature extraction for {num_tokens:,} tokens...")
         
         # Create dataset and dataloader
         dataset = WikiTextDataset(num_tokens=num_tokens, sequence_length=sequence_length)
@@ -430,8 +448,8 @@ class RealGemmaScopeExtractor:
                           f"({processed_tokens:,} tokens), ETA: {eta_minutes:.1f} min")
         
         total_time = time.time() - start_time
-        print(f"✅ Completed in {total_time/60:.1f} minutes")
-        print(f"📊 Processed {processed_tokens:,} tokens total")
+        print(f" Completed in {total_time/60:.1f} minutes")
+        print(f" Processed {processed_tokens:,} tokens total")
         
         # Collect results
         results = {
@@ -465,13 +483,13 @@ class RealGemmaScopeExtractor:
         if features['activations']:
             activations_path = os.path.join(output_dir, "activations.npy")
             np.save(activations_path, features['activations'])
-            print(f"💾 Saved activations to {activations_path}")
+            print(f" Saved activations to {activations_path}")
         
         # Save SAE features if available
         if features['sae_features']:
             sae_path = os.path.join(output_dir, "sae_features.npy")
             np.save(sae_path, features['sae_features'])
-            print(f"💾 Saved SAE features to {sae_path}")
+            print(f" Saved SAE features to {sae_path}")
         
         # Save metadata
         metadata = {
@@ -488,7 +506,7 @@ class RealGemmaScopeExtractor:
         metadata_path = os.path.join(output_dir, "metadata.json")
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
-        print(f"📄 Saved metadata to {metadata_path}")
+        print(f" Saved metadata to {metadata_path}")
         
         # Save summary
         summary = [
@@ -514,22 +532,22 @@ class RealGemmaScopeExtractor:
             f.write(summary_text)
         
         print(summary_text)
-        print(f"📄 Summary saved to {summary_path}")
+        print(f" Summary saved to {summary_path}")
     
     def remove_hooks(self):
         """Remove all registered hooks."""
         for hook in self.hooks.values():
             hook.clear()
         self.hooks.clear()
-        print("🧹 Removed all hooks")
+        print(" Removed all hooks")
 
 
 def main():
     """Main function for real GemmaScope feature extraction."""
     print("=" * 60)
-    print("🧪 REAL GEMMASCOPE FEATURE EXTRACTION")
+    print(" REAL GEMMASCOPE FEATURE EXTRACTION")
     print("=" * 60)
-    print("📋 Using:")
+    print(" Using:")
     print("- Gemma-2-2B model")
     print("- Real GemmaScope SAEs via SAELens")
     print("- Target layers: 4, 8, 12, 16")
@@ -538,7 +556,7 @@ def main():
     
     # Check if HuggingFace token is set
     if not os.getenv("HF_TOKEN"):
-        print("⚠️  Warning: HF_TOKEN environment variable not set")
+        print(" Warning: HF_TOKEN environment variable not set")
         print("You may encounter authentication errors with Gemma-2-2B")
         print("Set your token with: export HF_TOKEN=your_token_here")
         print()
@@ -551,14 +569,14 @@ def main():
             sae_width=16384  # 16k features
         )
     except Exception as e:
-        print(f"❌ Failed to initialize extractor: {e}")
+        print(f"Failed to initialize extractor: {e}")
         return
     
     # Extract features
     try:
         # Start with smaller scale for testing
         test_tokens = 50_000  # 50K tokens for initial test
-        print(f"🧪 Starting with {test_tokens:,} tokens for testing...")
+        print(f"Starting with {test_tokens:,} tokens for testing...")
         
         features = extractor.extract_features(
             num_tokens=test_tokens,
