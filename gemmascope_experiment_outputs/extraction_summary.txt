@@ -1,0 +1,19 @@
+🧪 GEMMASCOPE FEATURE EXTRACTION SUMMARY
+==================================================
+Model: google/gemma-2-2b
+Layers: [4, 8, 12, 16]
+SAE Width: 16384
+
+Results:
+  Layer 4:
+    Activations: (97, 2304)
+    SAE Features: (97, 16384)
+  Layer 8:
+    Activations: (97, 2304)
+    SAE Features: (97, 16384)
+  Layer 12:
+    Activations: (97, 2304)
+    SAE Features: (97, 16384)
+  Layer 16:
+    Activations: (97, 2304)
+    SAE Features: (97, 16384)

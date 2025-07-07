@@ -1,0 +1,25 @@
+{
+  "model": "google/gemma-2-2b",
+  "layers": [
+    4,
+    8,
+    12,
+    16
+  ],
+  "sae_width": 16384,
+  "total_sequences": 97,
+  "activation_dims": {
+    "4": 2304,
+    "8": 2304,
+    "12": 2304,
+    "16": 2304
+  },
+  "sae_feature_dims": {
+    "4": 16384,
+    "8": 16384,
+    "12": 16384,
+    "16": 16384
+  },
+  "has_sae_features": true,
+  "extraction_timestamp": "2025-07-07 22:09:40"
+}

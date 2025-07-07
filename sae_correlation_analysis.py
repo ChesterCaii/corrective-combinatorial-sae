@@ -333,7 +333,7 @@ def main():
     print("Building feature-correlation graph for Corrective Steering")
     
     # Configuration
-    SAE_FEATURES_PATH = "simple_gemma_scope_features.npy"
+    SAE_FEATURES_PATH = "gemmascope_experiment_outputs/sae_features.npy"
     MAX_FEATURES = 200  # Analyze top 200 features per layer by importance
     THRESHOLD = 0.3     # Original experiment threshold: |ρ| > 0.3
     

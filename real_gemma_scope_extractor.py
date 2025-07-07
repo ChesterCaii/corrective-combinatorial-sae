@@ -304,47 +304,50 @@ class RealGemmaScopeExtractor:
             return
         
         # Correct GemmaScope repository
-        sae_repo = "google/gemma-scope-2b-pt-res"
+        # sae_repo = "google/gemma-scope-2b-pt-res"
+        sae_repo = "gemma-scope-2b-pt-res-canonical"
         
         for layer_idx in self.target_layers:
             try:
                 print(f"Loading SAE for layer {layer_idx}...")
                 
                 # Correct SAE ID format for GemmaScope
-                sae_id = f"layer_{layer_idx}/width_16k/average_l0_71"
+                sae_id = f"layer_{layer_idx}/width_16k/canonical"
                 
                 # Load SAE using SAELens
                 try:
-                    sae = SAE.from_pretrained(
+                    sae_tupl = SAE.from_pretrained(
                         release=sae_repo,
                         sae_id=sae_id,
                         device=self.device
                     )
+
+                    sae, cfg_dict, sparsity = sae_tupl
                     self.saes[layer_idx] = sae
-                    print(f" Layer {layer_idx} SAE loaded: input_dim={sae.d_in}, output_dim={sae.d_sae}")
+                    print(f" Layer {layer_idx} SAE loaded: input_dim={sae.cfg.d_in}, output_dim={sae.cfg.d_sae}")
                     
                 except Exception as sae_error:
                     print(f"  Could not load SAE for layer {layer_idx} via SAELens: {sae_error}")
-                    print(f"Trying alternative loading method...")
+                    # print(f"Trying alternative loading method...")
                     
-                    # Alternative: direct HuggingFace download
-                    try:
-                        if hf_hub_download is None:
-                            print("  huggingface_hub not available - cannot download SAE weights")
-                            continue
+                    # # Alternative: direct HuggingFace download
+                    # try:
+                    #     if hf_hub_download is None:
+                    #         print("  huggingface_hub not available - cannot download SAE weights")
+                    #         continue
                             
-                        sae_path = hf_hub_download(
-                            repo_id=sae_repo,
-                            filename=f"layer_{layer_idx}/width_16k/average_l0_71/sae_weights.safetensors",
-                            token=os.getenv("HF_TOKEN")
-                        )
-                        # This would require manual SAE reconstruction
-                        print(f"Downloaded SAE weights to {sae_path}")
-                        print("Manual SAE loading not implemented - skipping this layer")
+                    #     sae_path = hf_hub_download(
+                    #         repo_id=sae_repo,
+                    #         filename=f"layer_{layer_idx}/width_16k/average_l0_71/sae_weights.safetensors",
+                    #         token=os.getenv("HF_TOKEN")
+                    #     )
+                    #     # This would require manual SAE reconstruction
+                    #     print(f"Downloaded SAE weights to {sae_path}")
+                    #     print("Manual SAE loading not implemented - skipping this layer")
                         
-                    except Exception as download_error:
-                        print(f"  Could not download SAE for layer {layer_idx}: {download_error}")
-                        print("Continuing without SAE for this layer...")
+                    # except Exception as download_error:
+                    #     print(f"  Could not download SAE for layer {layer_idx}: {download_error}")
+                    #     print("Continuing without SAE for this layer...")
                 
             except Exception as e:
                 print(f"  Error loading SAE for layer {layer_idx}: {e}")
