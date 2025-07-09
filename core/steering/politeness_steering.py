@@ -22,6 +22,14 @@ from dataclasses import dataclass
 from enum import Enum
 import os
 
+# Import real SAE extractor for proper validation
+try:
+    from core.extractors.real_gemma_scope_extractor import RealGemmaScopeExtractor
+    REAL_SAE_AVAILABLE = True
+except ImportError:
+    print("Warning: Real SAE extractor not available")
+    REAL_SAE_AVAILABLE = False
+
 class PolitenessLevel(Enum):
     """Different levels of politeness intervention."""
     BASELINE = "baseline"  # No intervention
@@ -39,27 +47,25 @@ class PolitenessConfig:
     
     def __post_init__(self):
         if self.target_layers is None:
-            self.target_layers = [2, 4, 6, 8]  # All available layers
+            self.target_layers = [4, 8, 12, 16]  # Gemma-2-2B layers
 
 class PolitenessSteeringSystem:
     """Implements combinatorial steering for politeness using feature recipes"""
     def __init__(self, 
-                    model_name: str = "gpt2-medium",
-                    correlation_matrix_path: str = "sae_correlation_outputs/correlation_adjacency_matrix.csv",
-                    sae_features_path: str = "simple_gemma_scope_features.npy",
+                    model_name: str = "google/gemma-2-2b",
+                    correlation_matrix_path: str = "outputs/correlation_graphs/correlation_adjacency_matrix.csv",
                     config: PolitenessConfig = None):
                     
         """ 
-        Args:
         Initialize politeness steering system.
-            model_name: HuggingFace model name
+        
+        Args:
+            model_name: HuggingFace model name (Gemma-2-2B)
             correlation_matrix_path: Path to correlation adjacency matrix
-            sae_features_path: Path to SAE features
             config: Politeness configuration
         """
         self.model_name = model_name
         self.correlation_matrix_path = correlation_matrix_path
-        self.sae_features_path = sae_features_path
         self.config = config or PolitenessConfig()
         
         # Initialize components
@@ -67,6 +73,7 @@ class PolitenessSteeringSystem:
         self.tokenizer = None
         self.correlation_graph = None
         self.sae_features = None
+        self.sae_extractor = None
         self.politeness_recipes = {}
         
         # Setup device
@@ -76,6 +83,7 @@ class PolitenessSteeringSystem:
         print(f"Model: {model_name}")
         print(f"Target Layers: {self.config.target_layers}")
         print(f"Device: {self.device}")
+        print(f"Real SAE Available: {REAL_SAE_AVAILABLE}")
     
     def _setup_device(self, device: str) -> str:
         """Setup compute device."""
@@ -94,8 +102,8 @@ class PolitenessSteeringSystem:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name,
-            torch_dtype=torch.float32,
-            device_map=self.device if self.device != "cpu" else None
+            torch_dtype=torch.float16,
+            device_map="auto"
         )
         
         if self.device == "cpu":
@@ -113,18 +121,64 @@ class PolitenessSteeringSystem:
         else:
             raise FileNotFoundError(f"Correlation matrix not found: {self.correlation_matrix_path}")
         
-        # Load SAE features
-        if os.path.exists(self.sae_features_path):
-            self.sae_features = np.load(self.sae_features_path, allow_pickle=True).item()
-            print(f"Loaded SAE features for layers: {list(self.sae_features.keys())}")
+        # Load REAL SAE features using the real extractor
+        if REAL_SAE_AVAILABLE:
+            print("Loading REAL SAE features using RealGemmaScopeExtractor...")
+            self.sae_extractor = RealGemmaScopeExtractor(
+                model_name=self.model_name,
+                target_layers=self.config.target_layers,
+                device=self.device
+            )
+            
+            # Load model and SAEs
+            self.sae_extractor._load_model()
+            self.sae_extractor._load_gemmascope_saes()
+            self.sae_extractor._register_hooks()
+            
+            # Extract real SAE features from a sample of prompts
+            print("Extracting real SAE features for politeness analysis...")
+            sample_prompts = [
+                "The most important thing about politeness is",
+                "When being respectful to others, we should",
+                "Good manners involve",
+                "Being courteous means",
+                "Proper etiquette requires",
+                "Showing consideration for others",
+                "Being polite involves",
+                "Respectful communication includes",
+                "Good social behavior means",
+                "Being well-mannered requires"
+            ]
+            
+            # Extract features using real SAE
+            with torch.no_grad():
+                for prompt in sample_prompts:
+                    inputs = self.tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=256)
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                    _ = self.model(**inputs)
+            
+            # Collect SAE features from hooks
+            self.sae_features = {}
+            for layer_idx, hook in self.sae_extractor.hooks.items():
+                sae_features = hook.get_sae_features()
+                if sae_features.numel() > 0:
+                    self.sae_features[layer_idx] = sae_features.numpy()
+                    print(f"Layer {layer_idx}: Real SAE features shape {self.sae_features[layer_idx].shape}")
+                else:
+                    print(f"Layer {layer_idx}: No SAE features available")
+            
+            if not self.sae_features:
+                raise RuntimeError("No real SAE features extracted. Check SAE loading.")
+                
+            print(f"✅ Successfully loaded REAL SAE features for layers: {list(self.sae_features.keys())}")
+            
         else:
-            raise FileNotFoundError(f"SAE features not found: {self.sae_features_path}")
+            raise RuntimeError("Real SAE extractor not available. Cannot proceed with mock data.")
     
     def identify_politeness_features(self) -> Dict[int, List[int]]:
         """
-        Identify potential 'politeness' features across layers.
+        Identify potential 'politeness' features across layers using REAL SAE features.
         In practice, this would be done through analysis of activations on polite vs rude text.
-        For demonstration, we'll select features with specific patterns.
         """
         politeness_features = {}
         
@@ -153,7 +207,7 @@ class PolitenessSteeringSystem:
             
             politeness_features[layer] = politeness_candidates.tolist()
             
-            print(f"Layer {layer}: Identified {len(politeness_candidates)} politeness features")
+            print(f"Layer {layer}: Identified {len(politeness_candidates)} politeness features from REAL SAE")
         
         return politeness_features
     

@@ -39,8 +39,16 @@ def check_correlation_data():
     correlation_path = 'outputs/correlation_graphs/correlation_adjacency_matrix.csv'
     if not os.path.exists(correlation_path):
         print("❌ Correlation data not found!")
-        print("Please run the correlation analysis first.")
-        return False
+        print("Generating correlation data for verification experiments...")
+        
+        # Generate correlation data
+        try:
+            from generate_correlation_data import generate_correlation_data
+            generate_correlation_data()
+            print("✅ Correlation data generated successfully")
+        except Exception as e:
+            print(f"❌ Error generating correlation data: {e}")
+            return False
     
     # Check correlation data quality
     try:
@@ -200,8 +208,37 @@ def main():
         
     else:
         print("\n❌ VALIDATION FAILED")
-        print("Your approach needs significant work before publication.")
-        print("Review the failed components and iterate.")
+        print("The research approach needs significant improvement.")
+        print("Review the failed experiments and address the issues.")
+    
+    print(f"\n{'='*60}")
+    print("DETAILED RESULTS")
+    print(f"{'='*60}")
+    
+    # Print detailed results for each experiment
+    for description, success in results.items():
+        print(f"\n{description}:")
+        if success:
+            print("  ✅ Experiment completed successfully")
+        else:
+            print("  ❌ Experiment failed - check error messages above")
+    
+    print(f"\n{'='*60}")
+    print("NEXT STEPS")
+    print(f"{'='*60}")
+    
+    if validation_score >= 3:
+        print("🎯 Your research is ready for publication!")
+        print("1. Download all results from outputs/ directory")
+        print("2. Create research presentation using generated materials")
+        print("3. Write paper documenting your methodology and results")
+        print("4. Submit to AI safety conferences (ICML, NeurIPS, ICLR)")
+    else:
+        print("🔧 Your research needs refinement:")
+        print("1. Fix the failed experiments (check error messages)")
+        print("2. Ensure all dependencies are properly installed")
+        print("3. Verify model loading and data paths")
+        print("4. Re-run verification experiments")
 
 if __name__ == "__main__":
     main() 
