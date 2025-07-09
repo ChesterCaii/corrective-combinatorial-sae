@@ -42,17 +42,16 @@ class PolitenessConfig:
             self.target_layers = [2, 4, 6, 8]  # All available layers
 
 class PolitenessSteeringSystem:
-    """Implements combinatorial steering for politeness using feature recipes."""
-    
+    """Implements combinatorial steering for politeness using feature recipes"""
     def __init__(self, 
-                 model_name: str = "gpt2-medium",
-                 correlation_matrix_path: str = "sae_correlation_outputs/correlation_adjacency_matrix.csv",
-                 sae_features_path: str = "simple_gemma_scope_features.npy",
-                 config: PolitenessConfig = None):
-        """
-        Initialize politeness steering system.
-        
+                    model_name: str = "gpt2-medium",
+                    correlation_matrix_path: str = "sae_correlation_outputs/correlation_adjacency_matrix.csv",
+                    sae_features_path: str = "simple_gemma_scope_features.npy",
+                    config: PolitenessConfig = None):
+                    
+        """ 
         Args:
+        Initialize politeness steering system.
             model_name: HuggingFace model name
             correlation_matrix_path: Path to correlation adjacency matrix
             sae_features_path: Path to SAE features

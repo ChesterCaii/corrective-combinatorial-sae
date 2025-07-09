@@ -380,7 +380,7 @@ class RealGemmaScopeExtractor:
     
     def extract_features(self, 
                         num_tokens: int = 1_000_000,
-                        batch_size: int = 16,  # Conservative for Gemma-2-2B
+                        batch_size: int = 32,  # Optimized for larger scale
                         sequence_length: int = 512) -> Dict[str, Dict[int, np.ndarray]]:
         """
         Extract features for the full experiment.
@@ -577,13 +577,13 @@ def main():
     
     # Extract features
     try:
-        # Start with smaller scale for testing
-        test_tokens = 50_000  # 50K tokens for initial test
-        print(f"Starting with {test_tokens:,} tokens for testing...")
+        # Scale up to full experiment size
+        target_tokens = 1_000_000  # 1M tokens for full experiment
+        print(f"Scaling up to {target_tokens:,} tokens for comprehensive analysis...")
         
         features = extractor.extract_features(
-            num_tokens=test_tokens,
-            batch_size=8,  # Conservative batch size
+            num_tokens=target_tokens,
+            batch_size=16,  # Increased batch size for efficiency
             sequence_length=512
         )
         
